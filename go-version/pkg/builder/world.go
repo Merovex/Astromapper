@@ -23,9 +23,14 @@ func BuildWorld(star *models.Star, orbitNum int, r *rng.RNG) *models.World {
 		},
 	}
 
-	biozone := star.GetBiozone()
-	world.Zone = determineZone(world.AU, biozone)
-	world.Distant = world.AU > biozone[1]*10
+	biozone, hasBiozone := star.GetBiozone()
+	if hasBiozone {
+		world.Zone = determineZone(world.AU, biozone)
+		world.Distant = world.AU > biozone[1]*10
+	} else {
+		world.Zone = -1
+		world.Distant = true
+	}
 
 	// UWP spine — Size / Atmo / Hydro from the ruleset's step formulas.
 	ctx := map[string]any{}
@@ -71,6 +76,9 @@ func BuildWorld(star *models.Star, orbitNum int, r *rng.RNG) *models.World {
 	if tech < 0 {
 		tech = 0
 	}
+	if activeTechCap != nil && tech > *activeTechCap {
+		tech = *activeTechCap // optional config ceiling (Ruby tech_cap)
+	}
 	if tech > 15 {
 		tech = 15
 	}
@@ -82,11 +90,9 @@ func BuildWorld(star *models.Star, orbitNum int, r *rng.RNG) *models.World {
 
 	world.TradeCodes = rs.TradeCodes(ctx)
 	world.Bases = generateBases(world.Port, r)
-	world.TravelCode = generateTravelCode(world.Government, world.Law)
+	world.TravelCode = generateTravelCode(world.Atmosphere, world.Government, world.Law)
 
-	if numMoons := r.D6() - 3; numMoons > 0 {
-		world.Moons = generateMoons(numMoons, &world.BaseOrbit, r)
-	}
+	world.Moons = generateMoons(toss(r, 1, 3), world.Size, "", world.Zone, r)
 
 	if world.Population > 0 { // PBG population multiplier (1-9)
 		world.PopMultiplier = 1 + r.Intn(9)
@@ -151,69 +157,95 @@ func generateBases(port string, r *rng.RNG) string {
 	return bases
 }
 
-func generateTravelCode(gov, law int) string {
-	if (gov == 0 && law == 0) || law >= 9 {
+// generateTravelCode mirrors Ruby World#travel_code. T5 leaves zones to the
+// referee; this auto-assigns: Red for the most oppressive/controlled worlds
+// (law or gov >= 15), Amber for caution.
+func generateTravelCode(atmo, gov, law int) string {
+	if law >= 15 || gov >= 15 {
+		return "R"
+	}
+	if atmo > 9 || gov == 0 || gov == 7 || gov == 10 || law == 0 || (law >= 9 && law <= 14) {
 		return "A"
 	}
 	return "."
 }
 
-func generateMoons(num int, planet *models.BaseOrbit, r *rng.RNG) []models.Moon {
-	// Orbit tables from the Ruby code.
+// generateMoons mirrors the Ruby Moon class: sizes keyed to the parent (gas-giant
+// L/S or planet size - 1d6, possibly negative), radii from the Close (1-14), Ring,
+// or Extreme (x25, large GGs only) tables, atmo/hydro by the parent's zone. Moons
+// key off their radius (duplicates collapse) and sort by it.
+func generateMoons(num, planetSize int, giant string, zone int, r *rng.RNG) []models.Moon {
 	closeOrbits := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
 	ringOrbits := []int{1, 1, 1, 2, 2, 3}
-	farOrbits := make([]int, len(closeOrbits))
-	extremeOrbits := make([]int, len(closeOrbits))
-	for i := range closeOrbits {
-		farOrbits[i] = closeOrbits[i] * 5
-		extremeOrbits[i] = closeOrbits[i] * 25
-	}
 
-	moons := make([]models.Moon, num)
+	moons := []models.Moon{}
 	for i := 0; i < num; i++ {
-		size := r.D6() - 3
-		if size < 0 {
-			size = 0
+		var size int
+		switch giant {
+		case "L":
+			size = toss(r, 2, 4)
+		case "S":
+			size = toss(r, 2, 6)
+		default:
+			size = planetSize - r.D6() // may go negative (moonlet)
 		}
 
-		orbitRoll := r.TwoD6() + i
+		orbitRoll := toss(r, 2, i)
 		var orbitalRadius int
-
 		switch {
 		case size < 1:
-			idx := r.D6() - 1
-			if idx >= len(ringOrbits) {
-				idx = len(ringOrbits) - 1
-			}
-			orbitalRadius = ringOrbits[idx]
-		case orbitRoll == 12 && planet.Kid == models.OrbitGasGiant:
-			idx := r.TwoD6()
-			if idx >= len(extremeOrbits) {
-				idx = len(extremeOrbits) - 1
-			}
-			orbitalRadius = extremeOrbits[idx]
-		case orbitRoll < 8:
-			idx := r.TwoD6()
-			if idx >= len(closeOrbits) {
-				idx = len(closeOrbits) - 1
-			}
-			orbitalRadius = closeOrbits[idx]
+			orbitalRadius = ringOrbits[min(toss(r, 1, 1), len(ringOrbits)-1)]
+		case orbitRoll == 12 && giant == "L":
+			orbitalRadius = closeOrbits[min(toss(r, 2, 0), len(closeOrbits)-1)] * 25
 		default:
-			idx := r.TwoD6()
-			if idx >= len(farOrbits) {
-				idx = len(farOrbits) - 1
-			}
-			orbitalRadius = farOrbits[idx]
+			orbitalRadius = closeOrbits[min(toss(r, 2, 0), len(closeOrbits)-1)]
 		}
 
-		moons[i] = models.Moon{
-			Planet:        planet,
+		hydro := 0
+		if zone == 1 && size != 0 {
+			hydro = toss(r, 2, 4)
+		} else if zone == 0 && size != 0 {
+			hydro = toss(r, 2, 7)
+		}
+
+		atmo := 0
+		if size != 0 && zone != 0 {
+			atmo = toss(r, 2, 7) + size - 4
+			if atmo < 0 {
+				atmo = 0
+			}
+		}
+
+		m := models.Moon{
 			Orbit:         i,
 			OrbitalRadius: orbitalRadius,
 			Size:          size,
-			Atmo:          0,
-			Hydro:         0,
+			Atmo:          atmo,
+			Hydro:         hydro,
 		}
+
+		// hash-key semantics: a later moon at the same radius replaces the earlier
+		replaced := false
+		for j := range moons {
+			if moons[j].OrbitalRadius == m.OrbitalRadius {
+				moons[j] = m
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			moons = append(moons, m)
+		}
+	}
+
+	// sort ascending by radius, renumber
+	for i := 1; i < len(moons); i++ {
+		for j := i; j > 0 && moons[j-1].OrbitalRadius > moons[j].OrbitalRadius; j-- {
+			moons[j-1], moons[j] = moons[j], moons[j-1]
+		}
+	}
+	for i := range moons {
+		moons[i].Orbit = i
 	}
 	return moons
 }

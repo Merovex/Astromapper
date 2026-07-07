@@ -23,6 +23,8 @@ type Orbit interface {
 	GetUWP() string
 	IsWorld() bool
 	ToASCII() string
+	SetOrbitNumber(int)
+	SetAU(float64)
 }
 
 type BaseOrbit struct {
@@ -43,10 +45,12 @@ type BaseOrbit struct {
 	Moons       []Moon    `json:"moons,omitempty"`
 }
 
-func (o *BaseOrbit) GetOrbitNumber() int { return o.OrbitNumber }
-func (o *BaseOrbit) GetAU() float64      { return o.AU }
-func (o *BaseOrbit) GetKid() OrbitType   { return o.Kid }
-func (o *BaseOrbit) IsWorld() bool       { return o.Kid == OrbitWorld }
+func (o *BaseOrbit) GetOrbitNumber() int  { return o.OrbitNumber }
+func (o *BaseOrbit) GetAU() float64       { return o.AU }
+func (o *BaseOrbit) GetKid() OrbitType    { return o.Kid }
+func (o *BaseOrbit) IsWorld() bool        { return o.Kid == OrbitWorld }
+func (o *BaseOrbit) SetOrbitNumber(n int) { o.OrbitNumber = n }
+func (o *BaseOrbit) SetAU(au float64)     { o.AU = au }
 
 func (o *BaseOrbit) GetUWP() string {
 	if o.Kid == "." {

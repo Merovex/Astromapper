@@ -12,9 +12,11 @@ import (
 // config globals. Set once before generating a sector (CLI or tests); a single
 // sector is generated on one goroutine, so a plain var is sufficient.
 var (
-	activeRuleset  *rules.Ruleset
-	activeSophonts string // "" or "human" = human-only; "varied" allows alien sophonts
-	activeGenre    = "normal"
+	activeRuleset         *rules.Ruleset
+	activeSophonts        string // "" or "human" = human-only; "varied" allows alien sophonts
+	activeGenre           = "normal"
+	activeAlwaysInhabited = true // guarantee a mainworld in the biozone (Ruby always_inhabited)
+	activeTechCap         *int   // optional tech-level ceiling (Ruby tech_cap)
 )
 
 // SetRuleset selects the active ruleset; SetSophonts the native-life mode;
@@ -26,6 +28,8 @@ func SetGenre(g string) {
 		activeGenre = g
 	}
 }
+func SetAlwaysInhabited(v bool) { activeAlwaysInhabited = v }
+func SetTechCap(v *int)         { activeTechCap = v }
 
 // gravityBySize is surface gravity (g) by Size, extended to T5 sizes B-F.
 var gravityBySize = []float64{0, 0.05, 0.15, 0.25, 0.35, 0.45, 0.7, 0.9, 1.0, 1.25, 1.4, 1.6, 1.9, 2.2, 2.5, 2.8}

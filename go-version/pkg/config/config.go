@@ -20,6 +20,10 @@ type Config struct {
 	Ruleset       string  `yaml:"ruleset"`
 	Sophonts      string  `yaml:"sophonts"`
 	PruneIsolated bool    `yaml:"prune_isolated"`
+	// AlwaysInhabited guarantees a mainworld in the biozone (Ruby always_inhabited).
+	AlwaysInhabited bool `yaml:"always_inhabited"`
+	// TechCap is an optional tech-level ceiling (nil = uncapped).
+	TechCap *int `yaml:"tech_cap"`
 	Islands       bool    `yaml:"islands"`
 	IslandJump    int     `yaml:"island_jump"`
 	IslandMin     int     `yaml:"island_min"`
@@ -36,7 +40,8 @@ func Defaults() Config {
 		Genre:         "normal",
 		Ruleset:       "t5",
 		Sophonts:      "human",
-		PruneIsolated: true,
+		PruneIsolated:   true,
+		AlwaysInhabited: true,
 		Islands:       true,
 		IslandJump:    2,
 		IslandMin:     2,
@@ -59,6 +64,8 @@ ruleset: t5             # t5 | cepheus | a custom rules/<name>.yml in this direc
 sophonts: human         # human (Settled/Colony) | varied (alien sophonts)
 
 prune_isolated: true     # drop systems with no neighbour within jump-4 (lone dots)
+always_inhabited: true   # guarantee a mainworld in the biozone; false lets it roll a gas giant
+tech_cap:                # optional tech-level ceiling (blank = uncapped)
 
 # Island borders on the SVG (clusters of nearby systems)
 islands: true

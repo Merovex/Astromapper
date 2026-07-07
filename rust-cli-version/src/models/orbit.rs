@@ -92,6 +92,7 @@ impl OrbitContent {
 
     pub fn moons(&self) -> Option<&[Moon]> {
         match self {
+            OrbitContent::World(w) => Some(&w.moons),
             OrbitContent::GasGiant(g) => Some(&g.moons),
             OrbitContent::Hostile(h) => Some(&h.moons),
             OrbitContent::Rockball(r) => Some(&r.moons),
@@ -153,6 +154,8 @@ pub struct WorldOrbit {
     pub orbit_number: u8,
     pub au: f64,
     pub world: World,
+    #[serde(default)]
+    pub moons: Vec<Moon>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

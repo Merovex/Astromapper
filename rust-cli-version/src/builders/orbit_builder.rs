@@ -133,7 +133,13 @@ impl OrbitBuilder {
                 .with_orbit(orbit_num)
                 .with_star_type(star.star_type)
                 .build()?;
-            Ok(OrbitContent::World(WorldOrbit { orbit_number: orbit_num, au, world }))
+            let moons = Self::make_moons(
+                Self::toss(1, 3) as usize,
+                world.size as i16,
+                None,
+                Zone::Biozone,
+            );
+            Ok(OrbitContent::World(WorldOrbit { orbit_number: orbit_num, au, world, moons }))
         } else {
             Ok(Self::make_gas_giant(orbit_num, au, Zone::Biozone))
         }

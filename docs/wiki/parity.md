@@ -1,6 +1,6 @@
 # Cross-Implementation Parity
 
-Updated: 2026-07-07
+Updated: 2026-07-07 (Rust converged AM; Go converged PM)
 
 ## Identical by construction (verified 2026-07-07)
 
@@ -41,6 +41,26 @@ GURPS forbidden zones, trailing-empty prune + renumber, gas-giant-size-aware moo
 | Companion stars generate their own (never displayed) orbit systems | Companions carry no orbits | Pure wasted draws |
 | `Moon` "Far" radius table (Close×5) defined but unreachable | Not ported | Dead code |
 
+## Go ↔ Ruby stellar/orbital convergence (ported 2026-07-07)
+
+Go was already closer than Rust (companions, zone tables, genre model existed).
+Fixed to match Ruby: truncated O-star rows (INNER_LIMIT/BIOZONE/MASS + O9 chart
+entry), companion class derivation (now seq + 1d6−1 cooler, was an old TypeDM
+table), fractional companion orbits (Star.Orbit is now float64), the **dead prune
+renumber** (type assertions on `*models.BaseOrbit` never matched the concrete
+orbit types — orbit numbers/AU were never rewritten; fixed via SetOrbitNumber/
+SetAU on the Orbit interface), forbidden zones rebuilt to Ruby nil→empty→prune
+semantics, gas-giant L/S roll (was inverted: small on 1-3), moons (GG-size-aware
+counts/sizes, zone atmo/hydro, radius dedup+sort, Ruby moon UWP/ascii rows),
+moons+sizes for inner GGs / Rockballs / Hostiles, biozone `always_inhabited`
+option, travel zones (Ruby RZ/AZ rules incl. atmosphere; ascii column added),
+`tech_cap`, GetBiozone missing-row ⇒ all-inner. Golden regenerated
+(`UPDATE_GOLDEN=1 go test ./pkg/builder/`).
+
+Divergence policy identical to Rust: Ruby accidents (wasted draws, negative-index
+wraps, unreachable Far table) not replicated; Go world moons are sized from the
+final UWP size rather than Ruby's discarded preliminary size roll.
+
 ## Not parity goals (accepted)
 
 - **Cross-language byte-identical maps.** Ruby (MT19937) / Go (math/rand) / Rust
@@ -51,9 +71,6 @@ GURPS forbidden zones, trailing-empty prune + renumber, gas-giant-size-aware moo
 
 ## Known gaps (as of 2026-07-07)
 
-- **Go stellar layer**: go-version's world gen was converged on T5 rulesets, but
-  its stellar/orbital layer has NOT been audited against the 2026-07-07 Ruby↔Rust
-  convergence. Assume it still has the simplified model until checked.
 - **Ruby-only**: `about <hex>` command, canon-override pipeline
   (`apply_overrides!` / `apply_star_override!` / `ensure_gas_giants!`), the
   `tools/` post-processors. Rust has none of these yet (see [roadmap.md](roadmap.md)).
