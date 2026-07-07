@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::models::World;
+use crate::models::world::ehex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum OrbitType {
@@ -9,6 +10,7 @@ pub enum OrbitType {
     Belt,
     Hostile,
     Rockball,
+    Companion,
 }
 
 pub trait Orbit {
@@ -26,51 +28,117 @@ pub enum OrbitContent {
     Belt(Belt),
     Hostile(Hostile),
     Rockball(Rockball),
+    Companion(CompanionOrbit),
+}
+
+impl OrbitContent {
+    /// The single-letter orbit crib code (Ruby `kid`).
+    pub fn kid(&self) -> char {
+        match self {
+            OrbitContent::Empty(_) => '.',
+            OrbitContent::World(_) => 'W',
+            OrbitContent::GasGiant(_) => 'G',
+            OrbitContent::Belt(_) => 'B',
+            OrbitContent::Hostile(_) => 'H',
+            OrbitContent::Rockball(_) => 'R',
+            OrbitContent::Companion(_) => 'S',
+        }
+    }
+
+    pub fn set_orbit_number(&mut self, n: u8) {
+        match self {
+            OrbitContent::Empty(o) => o.orbit_number = n,
+            OrbitContent::World(o) => o.orbit_number = n,
+            OrbitContent::GasGiant(o) => o.orbit_number = n,
+            OrbitContent::Belt(o) => o.orbit_number = n,
+            OrbitContent::Hostile(o) => o.orbit_number = n,
+            OrbitContent::Rockball(o) => o.orbit_number = n,
+            OrbitContent::Companion(o) => o.orbit_number = n,
+        }
+    }
+
+    pub fn set_au(&mut self, au: f64) {
+        match self {
+            OrbitContent::Empty(o) => o.au = au,
+            OrbitContent::World(o) => o.au = au,
+            OrbitContent::GasGiant(o) => o.au = au,
+            OrbitContent::Belt(o) => o.au = au,
+            OrbitContent::Hostile(o) => o.au = au,
+            OrbitContent::Rockball(o) => o.au = au,
+            OrbitContent::Companion(o) => o.au = au,
+        }
+    }
+
+    /// The UWP column for the per-orbit detail line (Ruby Orbit#uwp overrides).
+    pub fn uwp_column(&self) -> String {
+        match self {
+            OrbitContent::Empty(_) => ".......-.".to_string(),
+            OrbitContent::World(w) => w.world.uwp.clone(),
+            OrbitContent::GasGiant(g) => match g.size {
+                GiantSize::Small => "Small GG ".to_string(),
+                GiantSize::Large => "Large GG ".to_string(),
+            },
+            OrbitContent::Belt(_) => "XR00000-0".to_string(),
+            OrbitContent::Hostile(h) => format!(
+                "X{}{}{}000-0",
+                ehex(h.size.max(0) as u8),
+                ehex(h.atmosphere),
+                ehex(h.hydrographics)
+            ),
+            OrbitContent::Rockball(r) => format!("X{}00000-0", ehex(r.size.max(0) as u8)),
+            OrbitContent::Companion(c) => format!("{:<9}", c.classification),
+        }
+    }
+
+    pub fn moons(&self) -> Option<&[Moon]> {
+        match self {
+            OrbitContent::GasGiant(g) => Some(&g.moons),
+            OrbitContent::Hostile(h) => Some(&h.moons),
+            OrbitContent::Rockball(r) => Some(&r.moons),
+            _ => None,
+        }
+    }
 }
 
 impl Orbit for OrbitContent {
     fn orbit_number(&self) -> u8 {
         match self {
-            OrbitContent::Empty(o) => o.orbit_number(),
-            OrbitContent::World(o) => o.orbit_number(),
-            OrbitContent::GasGiant(o) => o.orbit_number(),
-            OrbitContent::Belt(o) => o.orbit_number(),
-            OrbitContent::Hostile(o) => o.orbit_number(),
-            OrbitContent::Rockball(o) => o.orbit_number(),
+            OrbitContent::Empty(o) => o.orbit_number,
+            OrbitContent::World(o) => o.orbit_number,
+            OrbitContent::GasGiant(o) => o.orbit_number,
+            OrbitContent::Belt(o) => o.orbit_number,
+            OrbitContent::Hostile(o) => o.orbit_number,
+            OrbitContent::Rockball(o) => o.orbit_number,
+            OrbitContent::Companion(o) => o.orbit_number,
         }
     }
-    
+
     fn au(&self) -> f64 {
         match self {
-            OrbitContent::Empty(o) => o.au(),
-            OrbitContent::World(o) => o.au(),
-            OrbitContent::GasGiant(o) => o.au(),
-            OrbitContent::Belt(o) => o.au(),
-            OrbitContent::Hostile(o) => o.au(),
-            OrbitContent::Rockball(o) => o.au(),
+            OrbitContent::Empty(o) => o.au,
+            OrbitContent::World(o) => o.au,
+            OrbitContent::GasGiant(o) => o.au,
+            OrbitContent::Belt(o) => o.au,
+            OrbitContent::Hostile(o) => o.au,
+            OrbitContent::Rockball(o) => o.au,
+            OrbitContent::Companion(o) => o.au,
         }
     }
-    
+
     fn orbit_type(&self) -> OrbitType {
         match self {
-            OrbitContent::Empty(o) => o.orbit_type(),
-            OrbitContent::World(o) => o.orbit_type(),
-            OrbitContent::GasGiant(o) => o.orbit_type(),
-            OrbitContent::Belt(o) => o.orbit_type(),
-            OrbitContent::Hostile(o) => o.orbit_type(),
-            OrbitContent::Rockball(o) => o.orbit_type(),
+            OrbitContent::Empty(_) => OrbitType::Empty,
+            OrbitContent::World(_) => OrbitType::World,
+            OrbitContent::GasGiant(_) => OrbitType::GasGiant,
+            OrbitContent::Belt(_) => OrbitType::Belt,
+            OrbitContent::Hostile(_) => OrbitType::Hostile,
+            OrbitContent::Rockball(_) => OrbitType::Rockball,
+            OrbitContent::Companion(_) => OrbitType::Companion,
         }
     }
-    
+
     fn to_ascii(&self) -> String {
-        match self {
-            OrbitContent::Empty(o) => o.to_ascii(),
-            OrbitContent::World(o) => o.to_ascii(),
-            OrbitContent::GasGiant(o) => o.to_ascii(),
-            OrbitContent::Belt(o) => o.to_ascii(),
-            OrbitContent::Hostile(o) => o.to_ascii(),
-            OrbitContent::Rockball(o) => o.to_ascii(),
-        }
+        self.kid().to_string()
     }
 }
 
@@ -80,25 +148,11 @@ pub struct EmptyOrbit {
     pub au: f64,
 }
 
-impl Orbit for EmptyOrbit {
-    fn orbit_number(&self) -> u8 { self.orbit_number }
-    fn au(&self) -> f64 { self.au }
-    fn orbit_type(&self) -> OrbitType { OrbitType::Empty }
-    fn to_ascii(&self) -> String { "-".to_string() }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldOrbit {
     pub orbit_number: u8,
     pub au: f64,
     pub world: World,
-}
-
-impl Orbit for WorldOrbit {
-    fn orbit_number(&self) -> u8 { self.orbit_number }
-    fn au(&self) -> f64 { self.au }
-    fn orbit_type(&self) -> OrbitType { OrbitType::World }
-    fn to_ascii(&self) -> String { "W".to_string() }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,64 +169,65 @@ pub enum GiantSize {
     Large,
 }
 
-impl Orbit for GasGiant {
-    fn orbit_number(&self) -> u8 { self.orbit_number }
-    fn au(&self) -> f64 { self.au }
-    fn orbit_type(&self) -> OrbitType { OrbitType::GasGiant }
-    fn to_ascii(&self) -> String {
-        match self.size {
-            GiantSize::Small => "G".to_string(),
-            GiantSize::Large => "G".to_string(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Belt {
     pub orbit_number: u8,
     pub au: f64,
 }
 
-impl Orbit for Belt {
-    fn orbit_number(&self) -> u8 { self.orbit_number }
-    fn au(&self) -> f64 { self.au }
-    fn orbit_type(&self) -> OrbitType { OrbitType::Belt }
-    fn to_ascii(&self) -> String { "B".to_string() }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Hostile {
     pub orbit_number: u8,
     pub au: f64,
+    /// World size digit (2d6-2, rolled before the hostile overrides).
+    #[serde(default)]
+    pub size: i16,
     pub atmosphere: u8,
     pub hydrographics: u8,
-}
-
-impl Orbit for Hostile {
-    fn orbit_number(&self) -> u8 { self.orbit_number }
-    fn au(&self) -> f64 { self.au }
-    fn orbit_type(&self) -> OrbitType { OrbitType::Hostile }
-    fn to_ascii(&self) -> String { "H".to_string() }
+    #[serde(default)]
+    pub moons: Vec<Moon>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rockball {
     pub orbit_number: u8,
     pub au: f64,
+    #[serde(default)]
+    pub size: i16,
+    #[serde(default)]
+    pub moons: Vec<Moon>,
 }
 
-impl Orbit for Rockball {
-    fn orbit_number(&self) -> u8 { self.orbit_number }
-    fn au(&self) -> f64 { self.au }
-    fn orbit_type(&self) -> OrbitType { OrbitType::Rockball }
-    fn to_ascii(&self) -> String { "R".to_string() }
+/// A companion star holding down an orbit slot of the primary (Ruby Companion<Orbit).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanionOrbit {
+    pub orbit_number: u8,
+    pub au: f64,
+    /// Compact classification of the companion star, e.g. "M2V".
+    pub classification: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Moon {
     pub orbit: u8,
-    pub orbital_radius: u8,  // Distance in planetary radii
-    pub size: u8,
+    /// Distance in planetary radii (Ruby moon @orbit; extreme orbits reach 350).
+    pub orbital_radius: u16,
+    /// Can be negative for the tiniest moonlets (rendered 'S'; 0 renders 'R').
+    pub size: i16,
     pub atmosphere: u8,
     pub hydrographics: u8,
+}
+
+impl Moon {
+    /// Ruby Moon#uwp: X + size + atmo + hydro + 000 (no dash/tech).
+    pub fn uwp(&self) -> String {
+        let size = if self.size < 0 {
+            "S".to_string()
+        } else if self.size == 0 {
+            "R".to_string()
+        } else {
+            ehex(self.size as u8).to_string()
+        };
+        format!("X{}{}{}000", size, ehex(self.atmosphere), ehex(self.hydrographics))
+    }
 }

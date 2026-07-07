@@ -54,6 +54,12 @@ pub struct Config {
     pub sophonts: String,
     #[serde(default = "d_true")]
     pub prune_isolated: bool,
+    /// Guarantee a mainworld in every biozone orbit (Ruby always_inhabited).
+    #[serde(default = "d_true")]
+    pub always_inhabited: bool,
+    /// Optional tech-level ceiling.
+    #[serde(default)]
+    pub tech_cap: Option<i64>,
     #[serde(default = "d_true")]
     pub islands: bool,
     #[serde(default = "d_jump")]
@@ -98,6 +104,8 @@ genre: normal           # firm (realistic, M-dwarf-heavy) | normal | opera (Sun-
 ruleset: t5             # t5 | cepheus | a custom rules/<name>.yml in this directory
 sophonts: human         # human (Settled/Colony) | varied (alien sophonts)
 prune_isolated: true    # drop systems with no neighbour within jump-4 (lone dots)
+always_inhabited: true  # guarantee a mainworld in the biozone; false lets it roll a gas giant
+tech_cap:               # optional tech-level ceiling (blank = uncapped)
 
 # Island borders on the SVG (clusters of nearby systems)
 islands: true

@@ -11,6 +11,8 @@ thread_local! {
     static RULESET: RefCell<Option<Rc<Ruleset>>> = const { RefCell::new(None) };
     static GENRE: RefCell<String> = RefCell::new(String::from("normal"));
     static SOPHONTS: RefCell<String> = RefCell::new(String::from("human"));
+    static ALWAYS_INHABITED: RefCell<bool> = const { RefCell::new(true) };
+    static TECH_CAP: RefCell<Option<i64>> = const { RefCell::new(None) };
 }
 
 pub fn set_ruleset(rs: Ruleset) {
@@ -43,4 +45,22 @@ pub fn set_sophonts(s: &str) {
 
 pub fn sophonts() -> String {
     SOPHONTS.with(|x| x.borrow().clone())
+}
+
+/// Ruby `always_inhabited` (default true): guarantee a mainworld in the biozone.
+pub fn set_always_inhabited(v: bool) {
+    ALWAYS_INHABITED.with(|x| *x.borrow_mut() = v);
+}
+
+pub fn always_inhabited() -> bool {
+    ALWAYS_INHABITED.with(|x| *x.borrow())
+}
+
+/// Optional tech-level ceiling (Ruby config `tech_cap`).
+pub fn set_tech_cap(v: Option<i64>) {
+    TECH_CAP.with(|x| *x.borrow_mut() = v);
+}
+
+pub fn tech_cap() -> Option<i64> {
+    TECH_CAP.with(|x| *x.borrow())
 }

@@ -55,18 +55,14 @@ impl Volume {
         }
         let pbg = format!("{}{}{}", w.pop_multiplier, belts.min(9), gg.min(9));
 
-        let zone = if (w.government == 0 && w.law_level == 0) || w.law_level >= 9 {
-            "A"
-        } else {
-            ""
+        let zone = match w.travel_code() {
+            "RZ" => "R",
+            "AZ" => "A",
+            _ => "",
         };
 
         let stars = if let Some(s) = &self.star {
-            let mut v = vec![s.to_string()];
-            for c in &s.companions {
-                v.push(c.to_string());
-            }
-            v.join(" ")
+            s.t5_stars()
         } else {
             String::new()
         };
@@ -121,71 +117,71 @@ impl Volume {
     pub fn to_ascii(&self) -> String {
         if let Some(world) = &self.world {
             let stars_str = if let Some(star) = &self.star {
-                star.to_string()
+                let mut v = vec![star.classification()];
+                for c in &star.companions {
+                    v.push(c.classification());
+                }
+                v.join("/")
             } else {
                 String::new()
             };
-            
+
+            // Per-orbit detail lines (Ruby Orbit#to_ascii + Moon#to_ascii).
             let orbits_str = if let Some(star) = &self.star {
                 star.orbits.iter()
-                    .enumerate()
-                    .map(|(i, o)| {
-                        let bio = if let Some(s) = &self.star {
-                            let (bio_inner, bio_outer) = s.biozone();
-                            let au = s.orbit_to_au(i as u8);
-                            if au >= bio_inner && au <= bio_outer {
-                                "*"
-                            } else if au > s.outer_limit() {
-                                "-"
-                            } else {
-                                " "
-                            }
+                    .map(|o| {
+                        let au = o.au();
+                        let bio = if au > star.outer_limit() {
+                            "-"
+                        } else if let Some((b0, b1)) = star.biozone() {
+                            if au >= b0 && au <= b1 { "*" } else { " " }
                         } else {
                             " "
                         };
-                        format!("\n  -- {:2}. {} {} // {:9} // {:4.1} au",
-                            i + 1,
+                        let mut line = format!(
+                            "\n  -- {:2}. {}  {} // {} // {:4.1} au",
+                            o.orbit_number() as usize + 1,
                             bio,
-                            o.to_ascii(),
-                            Self::orbit_uwp(o),
-                            o.au()
-                        )
+                            o.kid(),
+                            o.uwp_column(),
+                            au
+                        );
+                        if let Some(moons) = o.moons() {
+                            for m in moons {
+                                line.push_str(&format!(
+                                    "\n{:28}/  {:3} rad. {}",
+                                    "", m.orbital_radius, m.uwp()
+                                ));
+                            }
+                        }
+                        line
                     })
                     .collect::<Vec<_>>()
                     .join("")
             } else {
                 String::new()
             };
-            
-            // Generate orbits crib string (showing orbit types)
+
+            // Orbit crib (Ruby Star#crib second column).
             let orbits_crib = if let Some(star) = &self.star {
-                star.orbits.iter()
-                    .map(|o| match o {
-                        crate::models::OrbitContent::Empty(_) => ".",
-                        crate::models::OrbitContent::World(_) => "W",
-                        crate::models::OrbitContent::GasGiant(_) => "G",
-                        crate::models::OrbitContent::Belt(_) => "B",
-                        crate::models::OrbitContent::Hostile(_) => "H",
-                        crate::models::OrbitContent::Rockball(_) => "R",
-                    })
-                    .collect::<Vec<_>>()
-                    .join("")
+                star.orbits.iter().map(|o| o.kid()).collect::<String>()
             } else {
                 String::new()
             };
-            
+
             // Generate factions string
             let factions = if world.factions.is_empty() {
                 ".".to_string()
             } else {
                 world.factions.join(" ")
             };
-            
+
             // Format with proper spacing/alignment
             let coords_padded = format!("{:<8}", self.coords());
-            let uwp_padded = format!("{:<9}", world.uwp);  
+            let uwp_padded = format!("{:<9}", world.uwp);
             let temp_padded = format!("{:<4}", world.temperature.to_code());
             let bases_padded = format!("{:<5}", world.bases_string());
+            let travel_padded = format!("{:<2}", world.travel_code());
             let trade_codes_padded = format!("{:<11}", world.trade_codes_string());
             let factions_padded = format!("{:<12}", factions);
             let stars_padded = format!("{:<13}", stars_str);
@@ -204,15 +200,16 @@ impl Volume {
             }
 
             format!(
-                "{} {} {} {} {} {} {} {} {}{}",
-                coords_padded,      // Left-align in 8-character field
-                uwp_padded,         // Left-align UWP in 13-character field (11 + 2 padding)
-                temp_padded,        // Left-align in 4-character field
-                bases_padded,       // Left-align in 5-character field
-                trade_codes_padded, // Left-align in 11-character field
-                factions_padded,    // Left-align in 12-character field
-                stars_padded,       // Left-align in 13-character field
-                orbits_crib_padded, // Left-align in 13-character field
+                "{} {} {} {} {} {} {} {} {} {}{}",
+                coords_padded,
+                uwp_padded,
+                temp_padded,
+                bases_padded,
+                travel_padded,
+                trade_codes_padded,
+                factions_padded,
+                stars_padded,
+                orbits_crib_padded,
                 name_ext,
                 orbits_str
             )
@@ -221,28 +218,6 @@ impl Volume {
             format!("{} Empty system: {}", self.coords(), self.name)
         } else {
             format!("{} Empty", self.coords())
-        }
-    }
-    
-    fn orbit_uwp(orbit: &crate::models::OrbitContent) -> String {
-        use crate::models::OrbitContent;
-        match orbit {
-            OrbitContent::Empty(_) => ".........".to_string(),
-            OrbitContent::World(w) => w.world.uwp.clone(),
-            OrbitContent::GasGiant(g) => {
-                match g.size {
-                    crate::models::orbit::GiantSize::Small => "Small GG ".to_string(),
-                    crate::models::orbit::GiantSize::Large => "Large GG ".to_string(),
-                }
-            },
-            OrbitContent::Belt(_) => "Belt     ".to_string(),
-            OrbitContent::Hostile(h) => {
-                format!("X..{:X}{:X}...-.",
-                    h.atmosphere.min(15),
-                    h.hydrographics.min(15)
-                )
-            },
-            OrbitContent::Rockball(_) => "Y......-.".to_string(),
         }
     }
 }
