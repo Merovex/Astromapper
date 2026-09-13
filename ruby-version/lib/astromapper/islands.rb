@@ -59,7 +59,7 @@ module Astromapper
       loops
     end
 
-    # hexes: array of [col, row]. Returns an array of [colour, loops, size]
+    # hexes: array of [col, row]. Returns an array of [colour, loops, size, members]
     # where loops is a list of closed rings (each an array of [x, y] points).
     def borders(hexes, side:, factor:, cols: 32, rows: 40, threshold: 2, min_size: 2)
       hexes = hexes.uniq
@@ -148,7 +148,8 @@ module Astromapper
           end
         end
         border = edges.select { |_, n| n == 1 }.keys.map { |k| raw[k] }
-        [PALETTE[i % PALETTE.size], chain_loops(border), clusters[i].size]
+        # Fourth element: the member system hexes, for callers that label islands.
+        [PALETTE[i % PALETTE.size], chain_loops(border), clusters[i].size, clusters[i]]
       end
     end
   end
