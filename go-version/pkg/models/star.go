@@ -28,6 +28,7 @@ type StarData struct {
 }
 
 var StarChart = map[string]StarData{
+	"O9": {"Zeta Ophiuchi", 33000, 55000, 18.0, 7.00},
 	"B0": {"Becrux", 30000, 16000, 16.0, 5.70},
 	"B2": {"Spica", 22000, 8300, 10.5, 5.10},
 	"B5": {"Achernar", 15000, 750, 5.40, 3.70},
@@ -52,7 +53,7 @@ var StarChart = map[string]StarData{
 }
 
 var InnerLimit = map[StarType][]float64{
-	"O": {16, 13, 10},
+	"O": {16, 13, 10, 8, 6, 1, 0},
 	"B": {10, 6.3, 5.0, 4.0, 3.8, 0.6, 0},
 	"A": {4, 1, 0.4, 0, 0, 0, 0},
 	"F": {4, 1, 0.3, 0.1, 0, 0, 0},
@@ -63,7 +64,7 @@ var InnerLimit = map[StarType][]float64{
 }
 
 var Biozone = map[StarType][][2]float64{
-	"O": {{790, 1190}, {630, 950}, {500, 750}},
+	"O": {{790, 1190}, {630, 950}, {500, 750}, {350, 525}, {235, 350}, {150, 225}, {100, 150}},
 	"B": {{500, 700}, {320, 480}, {250, 375}, {200, 300}, {180, 270}, {30, 45}},
 	"A": {{200, 300}, {50, 75}, {20, 30}, {5.0, 7.5}, {4.0, 6.0}, {3.1, 4.7}},
 	"F": {{200, 300}, {50, 75}, {13, 19}, {2.5, 3.7}, {2.0, 3.0}, {1.6, 2.4}, {0.5, 0.8}},
@@ -74,7 +75,7 @@ var Biozone = map[StarType][][2]float64{
 }
 
 var StarMass = map[StarType][]float64{
-	"O": {70, 60, 0, 0, 50, 0},
+	"O": {90, 60, 40, 25, 20, 16, 16},
 	"B": {50, 40, 35, 30, 20, 10},
 	"A": {30, 16, 10, 6, 4, 3},
 	"F": {15, 13, 8, 2.5, 2.2, 1.9},
@@ -98,7 +99,8 @@ type Star struct {
 	TypeDM      int      `json:"type_dm"`
 	SizeDM      int      `json:"size_dm"`
 	HasGG       bool     `json:"has_gas_giant"`
-	Orbit       int      `json:"orbit"`
+	// Fractional orbit slot for companions (Ruby @orbit); 0 for primaries.
+	Orbit       float64  `json:"orbit"`
 }
 
 func (s *Star) Classification() string {
@@ -116,12 +118,14 @@ func (s *Star) InnerLimit() float64 {
 	return limits[s.StarSize]
 }
 
-func (s *Star) GetBiozone() [2]float64 {
+// GetBiozone returns the habitable band and whether this type/size has one. A star
+// without a biozone entry reads all its orbits as inner (Ruby's rescue branch).
+func (s *Star) GetBiozone() ([2]float64, bool) {
 	zones, ok := Biozone[s.StarType]
 	if !ok || s.StarSize >= len(zones) {
-		return [2]float64{0, 0}
+		return [2]float64{0, 0}, false
 	}
-	return zones[s.StarSize]
+	return zones[s.StarSize], true
 }
 
 func (s *Star) Luminosity() float64 {
@@ -149,15 +153,26 @@ func (s *Star) SnowLine() float64 {
 }
 
 func (s *Star) OrbitToAU(orbit int) float64 {
-	return s.InnerLimit() + s.BodeConstant*math.Pow(2, float64(orbit))
+	return s.OrbitToAUf(float64(orbit))
 }
 
-func (s *Star) AUToOrbit(au float64) int {
+// OrbitToAUf mirrors Ruby orbit_to_au: inner limit + the Bode progression with the
+// product rounded to 0.1 (fractional orbits place companions).
+func (s *Star) OrbitToAUf(orbit float64) float64 {
+	return s.InnerLimit() + math.Round(s.BodeConstant*math.Pow(2, orbit)*10)/10
+}
+
+// AUToOrbit mirrors Ruby au_to_orbit: |log2(au/bode)| (rounded to 0.01) minus the
+// inner limit. Uses the primary's Bode constant for companions.
+func (s *Star) AUToOrbit(au float64) float64 {
 	constant := s.BodeConstant
 	if s.Primary != nil {
 		constant = s.Primary.BodeConstant
 	}
-	return int(math.Abs(math.Log(au/constant)/math.Log(2)) - s.InnerLimit())
+	if au <= 0 || constant <= 0 {
+		return 0
+	}
+	return math.Abs(math.Round(math.Log(au/constant)/math.Log(2)*100)/100) - s.InnerLimit()
 }
 
 func (s *Star) HasWorld() bool {

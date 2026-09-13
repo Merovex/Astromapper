@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## LLM Wiki (read this)
+Durable project knowledge lives in **`docs/wiki/`** (start at `docs/wiki/README.md`): repo map, cross-implementation parity status, standing decisions, gotchas (Ruby's backwards `Integer#max`/`min`, `toss(a,b)` dice semantics), and the Tauri-app roadmap. Update the wiki when facts change — it is the continuity layer between sessions. NOTE: the Rust stellar/orbital layer was converged onto the Ruby math on 2026-07-07 (companions, forbidden zones, full stellar tables, Ruby zone/moon tables, travel zones, tech_cap, always_inhabited) — see `docs/wiki/parity.md` for what matches and the deliberate divergences.
+
 ## Key Learnings from Development
 
 ### Porting Code Between Languages

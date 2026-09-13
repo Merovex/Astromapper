@@ -39,10 +39,14 @@ module Astromapper
       src = center_of(source).map(&:to_i)
       dst = center_of(target).map(&:to_i)
       m = src.slope(dst)
-      d = source.distance(target)
+      # Jump distance is the exact hex-path count (with the even-column stagger),
+      # the same metric the island borders use; the old rounded straight line was
+      # off by one on staggered pairs.
+      d = Astromapper::Islands.jump(source, target)
 
-      # Return meaningless route to self
-      return nil if d == 0
+      # Return meaningless route to self; and cap at jump-4, the widest class the
+      # stylesheet draws (the scan window reaches a few jump-5 pairs on the stagger).
+      return nil if d == 0 || d > 4
 
       # Avoid duplicate route from Target to Source
       return nil if @routes[shex].include?(thex)

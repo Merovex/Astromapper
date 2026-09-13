@@ -58,7 +58,14 @@ srand(0)   # stable belt jitter
 
 # Ruby tab-format sector line: "LOC UWP TEMP NSG TZ \t TRADE \t FACTIONS \t STARS \t NAME"
 lines = doc["volumes"].values.sort_by { |v| [v["row"], v["column"]] }.map do |v|
-  s = v["star"]; w = s["world"]
+  s = v["star"]
+  # Lean JSON (no star yet, e.g. a converted map before world generation): render a
+  # placeholder so the hex, name, routes and islands still draw.
+  if s.nil? || s["world"].nil?
+    loc = "%02d%02d" % [v["column"], v["row"]]
+    next "%s\t\t\t\t%s" % ["#{loc} X000000-0 .. . ..", v["name"]]
+  end
+  w = s["world"]
   comp = (s["orbits"] || []).select { |o| o["type"] == "companion" }.map { |o| o["data"]["star_classification"] }.compact
   stars = ([classification(s)] + comp).join("/")
   loc = "%02d%02d" % [v["column"], v["row"]]

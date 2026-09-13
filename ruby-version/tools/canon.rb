@@ -35,8 +35,18 @@ FACTOR       = 1.732
 FILL         = "#ffcf3f"   # canon-hex tint
 FILL_OPACITY = 0.35
 
-mode, path = ARGV
-abort "usage: ruby tools/canon.rb [rename|highlight] <file>" unless mode && path
+mode, path, list_path, fill_arg, opacity_arg = ARGV
+abort "usage: ruby tools/canon.rb [rename|highlight] <file> [hexlist.txt [fill [opacity]]]" unless mode && path
+# highlight may take an external hex list ("HEX name" per line, # comments) plus a
+# fill and opacity, instead of the built-in canon MAP.
+HIGHLIGHT = if list_path
+  File.readlines(list_path, encoding: "utf-8").map(&:strip).reject { |l| l.empty? || l.start_with?("#") }
+      .to_h { |l| h, n = l.split(/\s+/, 2); [h, n.to_s] }
+else
+  MAP
+end
+HL_FILL    = fill_arg    || FILL
+HL_OPACITY = opacity_arg || FILL_OPACITY
 
 case mode
 when "rename"
@@ -55,19 +65,19 @@ when "highlight"
   half_w = SIDE / 2; half_h = SIDE * FACTOR / 2
   corners = [[SIDE, 0], [half_w, half_h], [-half_w, half_h],
              [-SIDE, 0], [-half_w, -half_h], [half_w, -half_h]]
-  polys = MAP.keys.sort.map do |hex|
+  polys = HIGHLIGHT.keys.sort.map do |hex|
     cx, cy = Astromapper::Islands.centre(hex[0, 2].to_i, hex[2, 2].to_i, SIDE, FACTOR)
     pts = corners.map { |dx, dy| "#{(cx + dx).round},#{(cy + dy).round}" }.join(' ')
-    "<polygon points='#{pts}'><!--#{hex} #{MAP[hex]}--></polygon>"
+    "<polygon points='#{pts}'><!--#{hex} #{HIGHLIGHT[hex]}--></polygon>"
   end.join("\n")
-  group = "\n<g class='canon' fill='#{FILL}' fill-opacity='#{FILL_OPACITY}' stroke='none'>\n#{polys}\n</g><!--/canon-->"
+  group = "\n<g class='canon' fill='#{HL_FILL}' fill-opacity='#{HL_OPACITY}' stroke='none'>\n#{polys}\n</g><!--/canon-->"
   svg = svg.sub(%r{\n?<g class='canon'[^>]*>.*?</g><!--/canon-->}m, '')      # idempotent
   # Sit above the grid/tract rects (which carry an opaque themed fill) but below
   # the islands, routes and systems, so the tint shows yet labels stay on top.
   anchor = svg.include?("<g class='islands'>") ? "<g class='islands'>" : "<g class='routes'>"
   svg = svg.sub(anchor, "#{group}\n#{anchor}")
   File.write(path, svg)
-  puts "highlighted #{MAP.size} canon hexes in #{path}"
+  puts "highlighted #{HIGHLIGHT.size} hexes in #{path}"
 
 when "tab"
   lines = File.readlines(path, encoding: "utf-8")

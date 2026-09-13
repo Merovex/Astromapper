@@ -284,7 +284,7 @@ func (s *SVGGenerator) calcRoute(src, tgt [2]int) string {
 	dstPix := [2]int{int(dx), int(dy)}
 
 	d := distHex(src, tgt)
-	if d == 0 {
+	if d == 0 || d > 4 { // self, or beyond jump-4, the widest class the stylesheet draws
 		return ""
 	}
 	if containsStr(s.Routes[shex], thex) { // already have the reverse route
@@ -304,9 +304,11 @@ func (s *SVGGenerator) calcRoute(src, tgt [2]int) string {
 
 func hexStr(h [2]int) string { return fmt.Sprintf("%02d%02d", h[0], h[1]) }
 
+// distHex is the exact Traveller jump distance (hex-path count with the
+// even-column stagger), the same metric the island borders use. The former
+// rounded straight-line distance was off by one on staggered pairs.
 func distHex(a, b [2]int) int {
-	dx, dy := float64(a[0]-b[0]), float64(a[1]-b[1])
-	return int(math.Round(math.Sqrt(dx*dx + dy*dy)))
+	return models.HexJump(a[0], a[1], b[0], b[1])
 }
 
 // slopePix mirrors Ruby Array#slope: floored integer slope of two pixel points,

@@ -165,8 +165,8 @@ impl SvgGenerator {
         slopes: &mut std::collections::HashMap<(i64, i64), Vec<f64>>,
     ) -> Option<String> {
         let d = dist_hex(src, tgt);
-        if d == 0 {
-            return None;
+        if d == 0 || d > 4 {
+            return None; // self, or beyond jump-4, the widest class the stylesheet draws
         }
         if routes.get(&src).map_or(false, |v| v.contains(&tgt)) {
             return None; // already the reverse of an existing route
@@ -583,10 +583,11 @@ fn each_hex_targets(src: (i64, i64)) -> Vec<(i64, i64)> {
     out
 }
 
+/// Exact Traveller jump distance (hex-path count with the even-column stagger),
+/// the same metric the island borders use. The former rounded straight-line
+/// distance was off by one on staggered pairs.
 fn dist_hex(a: (i64, i64), b: (i64, i64)) -> i64 {
-    let dx = (a.0 - b.0) as f64;
-    let dy = (a.1 - b.1) as f64;
-    (dx * dx + dy * dy).sqrt().round() as i64
+    crate::models::sector::hex_jump(a.0, a.1, b.0, b.1)
 }
 
 fn floor_div(a: i64, b: i64) -> i64 {

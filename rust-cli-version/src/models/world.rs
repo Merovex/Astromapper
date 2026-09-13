@@ -150,6 +150,22 @@ impl World {
         );
     }
 
+    /// Travel zone (Ruby World#travel_code). T5 leaves zones to the referee; this
+    /// auto-assigns: Red for the most oppressive/controlled worlds, Amber for caution.
+    pub fn travel_code(&self) -> &'static str {
+        if self.law_level >= 15 || self.government >= 15 {
+            return "RZ";
+        }
+        if self.atmosphere > 9
+            || matches!(self.government, 0 | 7 | 10)
+            || self.law_level == 0
+            || (9..=14).contains(&self.law_level)
+        {
+            return "AZ";
+        }
+        ".."
+    }
+
     pub fn bases_string(&self) -> String {
         if self.bases.is_empty() {
             ".".to_string()

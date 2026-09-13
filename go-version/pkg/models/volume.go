@@ -34,11 +34,20 @@ func (v *Volume) ToASCII() string {
 		bases = "."
 	}
 	
-	summary := fmt.Sprintf("%-8s %-9s %-4s %-5s %-11s %-12s %-13s %-13s %s",
+	travel := ".."
+	switch w.TravelCode {
+	case "R":
+		travel = "RZ"
+	case "A":
+		travel = "AZ"
+	}
+
+	summary := fmt.Sprintf("%-8s %-9s %-4s %-5s %-2s %-11s %-12s %-13s %-13s %s",
 		v.Location(),
 		w.GetUWP(),
 		w.Temperature,
 		bases,
+		travel,
 		tradeCodes,
 		factions,
 		v.Star.Crib(),

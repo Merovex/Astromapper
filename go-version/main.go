@@ -211,6 +211,8 @@ func main() {
 	builder.SetRuleset(rs)
 	builder.SetSophonts(*sophonts)
 	builder.SetGenre(*genre)
+	builder.SetAlwaysInhabited(cfg.AlwaysInhabited)
+	builder.SetTechCap(cfg.TechCap)
 	fmt.Printf("Ruleset: %s  Genre: %s\n", rs.Title(), *genre)
 
 	// Load planet names

@@ -147,6 +147,8 @@ fn main() -> anyhow::Result<()> {
     runtime::set_ruleset(rs);
     runtime::set_genre(&genre);
     runtime::set_sophonts(&sophonts);
+    runtime::set_always_inhabited(cfg.always_inhabited);
+    runtime::set_tech_cap(cfg.tech_cap);
 
     fs::create_dir_all("output")?;
 

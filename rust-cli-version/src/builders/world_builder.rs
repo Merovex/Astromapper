@@ -94,8 +94,11 @@ impl WorldBuilder {
 
         world.factions = Self::generate_factions(world.population, world.law_level)?;
 
-        let tech = (rng::d6()? as i64 + rs.tech_dm(&ctx)).clamp(0, 15);
-        world.tech_level = tech as u8;
+        let mut tech = (rng::d6()? as i64 + rs.tech_dm(&ctx)).max(0);
+        if let Some(cap) = runtime::tech_cap() {
+            tech = tech.min(cap);
+        }
+        world.tech_level = tech.min(15) as u8;
         if world.population == 0 {
             world.law_level = 0;
             world.government = 0;
