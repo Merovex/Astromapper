@@ -280,7 +280,7 @@ This ensures that:
 ### Project Structure
 
 ```
-Astromapper-ruby/
+Astromapper/
 ├── go-version/          # Go implementation (recommended)
 ├── rust-cli-version/    # Rust implementation
 ├── ruby-version/        # Original Ruby version (deprecated)
